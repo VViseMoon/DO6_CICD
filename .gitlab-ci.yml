@@ -1,0 +1,51 @@
+stages:
+  - build
+  - style
+  - test
+  - deploy
+
+stage_build:
+  stage: build
+  script:
+    - mkdir artifacts
+    - (cd src/cat && make s21_cat)
+    - (cd src/grep && make s21_grep)
+    - cp src/cat/s21_cat src/grep/s21_grep artifacts
+  artifacts:
+    paths:
+      - artifacts
+    expire_in: "30 days"
+  tags:
+    - build_tag
+
+stage_style:
+  stage: style
+  needs: ["stage_build"]
+  tags:
+    - style_tag
+  script:
+    - cd src
+    - clang-format -n --Werror --verbose cat/*.c
+    - clang-format -n --Werror --verbose grep/*.c
+
+stage_test:
+  stage: test
+  needs: ["stage_build", "stage_style"]
+  tags:
+    - test_tag
+  script:
+    - cd src/cat
+    - make
+    - make test
+    - cd ../grep
+    - make
+    - make test
+  when: on_success
+
+stage_deploy:
+  stage: deploy
+  tags:
+    - deploy_tag
+  script:
+    - bash src/copy.sh
+  when: manual
